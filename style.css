@@ -1,0 +1,619 @@
+/* Graham's Ghost Bash - Styles */
+
+:root {
+    --purple: #7B2D8E;
+    --yellow: #FFD700;
+    --red: #E31837;
+    --blue: #1E90FF;
+    --green: #32CD32;
+    --orange: #FF6B35;
+    --pink: #FF69B4;
+
+    --bg-light: #f0e6ff;
+    --bg-dark: #1a1a2e;
+
+    --transition-speed: 0.5s;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Comic Sans MS', 'Chalkboard', cursive, sans-serif;
+    touch-action: manipulation;
+}
+
+body {
+    background: linear-gradient(135deg, var(--purple) 0%, #4a1259 100%);
+}
+
+/* Screen Management */
+.screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* Title Screen */
+#title-screen {
+    background: linear-gradient(180deg, #6B2D7B 0%, #4a1259 50%, #2d0a35 100%);
+}
+
+.title-content {
+    text-align: center;
+    animation: float 3s ease-in-out infinite;
+}
+
+.title-content h1 {
+    font-size: 3rem;
+    color: var(--yellow);
+    text-shadow: 4px 4px 0 var(--purple), 6px 6px 10px rgba(0,0,0,0.5);
+    margin-bottom: 1rem;
+    line-height: 1.2;
+}
+
+.title-ghost {
+    font-size: 6rem;
+    animation: ghostBounce 1s ease-in-out infinite;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+}
+
+/* Buttons */
+.big-button {
+    background: linear-gradient(180deg, var(--yellow) 0%, #FFA500 100%);
+    border: 4px solid #cc9900;
+    border-radius: 20px;
+    padding: 1.2rem 2.5rem;
+    font-size: 1.5rem;
+    font-family: inherit;
+    font-weight: bold;
+    color: var(--purple);
+    cursor: pointer;
+    margin-top: 2rem;
+    box-shadow: 0 6px 0 #cc9900, 0 10px 20px rgba(0,0,0,0.3);
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.big-button:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #cc9900, 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Game Screen */
+#game-screen {
+    background: var(--bg-light);
+    flex-direction: column;
+}
+
+/* HUD */
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+}
+
+#gummy-counter {
+    background: rgba(255,255,255,0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--purple);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.gummy-icon {
+    font-size: 1.8rem;
+}
+
+#room-indicator {
+    background: rgba(255,255,255,0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--purple);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* Game Area */
+#game-area {
+    flex: 1;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Room */
+.room {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transition: filter var(--transition-speed) ease;
+}
+
+/* Room Themes */
+.arcade-room {
+    background: linear-gradient(180deg, #2a1a4a 0%, #1a0a2a 100%);
+}
+
+.arcade-room::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30%;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #ff00ff22 0px,
+            #ff00ff22 20px,
+            #00ffff22 20px,
+            #00ffff22 40px
+        );
+    opacity: 0.5;
+}
+
+.trampoline-room {
+    background: linear-gradient(180deg, #4a90d9 0%, #2d5a8a 100%);
+}
+
+.trampoline-room::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background:
+        radial-gradient(ellipse at 20% 100%, #ff6b6b 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 100%, #ffd93d 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 100%, #6bcb77 0%, transparent 40%);
+}
+
+.prize-room {
+    background: linear-gradient(180deg, #ffd700 0%, #ff9500 100%);
+}
+
+.prize-room::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background:
+        linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.3) 100%);
+}
+
+/* Room when lights are on */
+.room.lights-on {
+    filter: brightness(1);
+}
+
+/* Room when lights are off */
+.room.lights-off {
+    filter: brightness(0.3);
+}
+
+/* Darkness Overlay */
+#darkness-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+    opacity: 0;
+    transition: opacity var(--transition-speed) ease;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.lights-off #darkness-overlay {
+    opacity: 1;
+}
+
+/* Light Switch */
+#light-switch-container {
+    padding: 1.5rem;
+    background: linear-gradient(0deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+#light-switch {
+    background: #f5f5f5;
+    border: 4px solid #ccc;
+    border-radius: 15px;
+    padding: 1rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+}
+
+#light-switch:active {
+    transform: scale(0.95);
+}
+
+.switch-plate {
+    width: 60px;
+    height: 80px;
+    background: #e0e0e0;
+    border-radius: 10px;
+    border: 3px solid #bbb;
+    position: relative;
+    overflow: hidden;
+}
+
+.switch-toggle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 45px;
+    background: linear-gradient(180deg, #fff 0%, #ddd 100%);
+    border-radius: 5px;
+    border: 2px solid #999;
+    transition: top 0.2s ease;
+}
+
+#light-switch.on .switch-toggle {
+    top: 5px;
+}
+
+#light-switch.off .switch-toggle {
+    top: 28px;
+}
+
+.switch-label {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #666;
+}
+
+/* Ghosts */
+.ghost {
+    position: absolute;
+    font-size: 4rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    animation: ghostFloat 2s ease-in-out infinite;
+    filter: drop-shadow(0 5px 15px rgba(255,255,255,0.5));
+    z-index: 10;
+}
+
+.ghost.visible {
+    opacity: 1;
+}
+
+.ghost.kung-fu {
+    animation: kungFuHit 0.4s ease-out forwards;
+}
+
+/* Chuck E Cheese */
+#chuck-e {
+    position: absolute;
+    bottom: 10%;
+    right: -100px;
+    font-size: 5rem;
+    z-index: 20;
+    transition: right 0.5s ease-out;
+    cursor: pointer;
+}
+
+#chuck-e.visible {
+    right: 10%;
+}
+
+#chuck-e.hidden {
+    right: -100px;
+}
+
+.chuck-e-body {
+    animation: chuckWave 0.5s ease-in-out infinite;
+}
+
+.chuck-e-hearts {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2rem;
+}
+
+.chuck-e-hearts.visible {
+    display: block;
+    animation: heartsFloat 1s ease-out forwards;
+}
+
+.chuck-e-hearts.hidden {
+    display: none;
+}
+
+/* Gummy Bears */
+.gummy {
+    position: absolute;
+    font-size: 3rem;
+    cursor: pointer;
+    animation: gummyBounce 0.5s ease-out;
+    z-index: 15;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3));
+}
+
+.gummy.collected {
+    animation: gummyCollect 0.3s ease-out forwards;
+}
+
+/* Kung Fu Effect */
+#kung-fu-effect {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+#kung-fu-effect.hidden {
+    display: none;
+}
+
+#kung-fu-effect.active {
+    display: flex;
+}
+
+.hiya-text {
+    font-size: 5rem;
+    font-weight: bold;
+    color: var(--yellow);
+    text-shadow:
+        4px 4px 0 var(--red),
+        -2px -2px 0 var(--red),
+        2px -2px 0 var(--red),
+        -2px 2px 0 var(--red);
+    animation: hiyaPop 0.4s ease-out forwards;
+}
+
+/* Room Complete Screen */
+#room-complete-screen {
+    background: linear-gradient(180deg, #4a1259 0%, #2d0a35 100%);
+}
+
+.complete-content {
+    text-align: center;
+}
+
+.complete-content h2 {
+    font-size: 3rem;
+    color: var(--yellow);
+    text-shadow: 3px 3px 0 var(--purple);
+    margin-bottom: 1rem;
+}
+
+.earned-gummies {
+    font-size: 3rem;
+    color: white;
+    margin: 1rem 0;
+    animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+/* Victory Screen */
+#victory-screen {
+    background: linear-gradient(180deg, var(--yellow) 0%, var(--orange) 100%);
+}
+
+.victory-content {
+    text-align: center;
+}
+
+.victory-content h1 {
+    font-size: 3rem;
+    color: var(--purple);
+    text-shadow: 3px 3px 0 white;
+    margin-bottom: 1rem;
+}
+
+.victory-ghost {
+    font-size: 5rem;
+    animation: victoryDance 0.5s ease-in-out infinite alternate;
+}
+
+.total-gummies {
+    font-size: 4rem;
+    color: var(--purple);
+    margin: 1rem 0;
+}
+
+.victory-content p {
+    font-size: 2rem;
+    color: var(--purple);
+    margin: 1rem 0;
+}
+
+.chuck-e-celebrate {
+    font-size: 4rem;
+    animation: chuckCelebrate 0.3s ease-in-out infinite alternate;
+}
+
+/* Animations */
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes ghostBounce {
+    0%, 100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+@keyframes ghostFloat {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-15px) rotate(3deg); }
+}
+
+@keyframes kungFuHit {
+    0% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.5) rotate(20deg); opacity: 0.8; }
+    100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+@keyframes gummyBounce {
+    0% { transform: scale(0) translateY(50px); }
+    60% { transform: scale(1.2) translateY(-20px); }
+    100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes gummyCollect {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2) translateY(-50px); opacity: 0; }
+}
+
+@keyframes hiyaPop {
+    0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+    50% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 0; }
+}
+
+@keyframes chuckWave {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+}
+
+@keyframes heartsFloat {
+    0% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-50px) scale(1.5); opacity: 0; }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.1); }
+}
+
+@keyframes victoryDance {
+    0% { transform: rotate(-10deg) scale(1); }
+    100% { transform: rotate(10deg) scale(1.1); }
+}
+
+@keyframes chuckCelebrate {
+    0% { transform: translateY(0) rotate(-5deg); }
+    100% { transform: translateY(-10px) rotate(5deg); }
+}
+
+/* Room Decorations */
+#room-decor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.decor {
+    position: absolute;
+}
+
+/* Arcade screen glow effect */
+.screen-glow {
+    animation: screenGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes screenGlow {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+/* Dance floor lights */
+.dance-light {
+    animation: danceLight 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes danceLight {
+    0% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Chuck E waving hand */
+.waving-hand {
+    animation: waveHand 0.3s ease-in-out infinite alternate;
+    transform-origin: center bottom;
+}
+
+@keyframes waveHand {
+    0% { transform: rotate(-15deg); }
+    100% { transform: rotate(15deg); }
+}
+
+/* Trampoline bounce effect */
+.trampoline svg {
+    animation: trampolineBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes trampolineBounce {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(0.95); }
+}
+
+/* Responsive */
+@media (max-height: 600px) {
+    .title-content h1 {
+        font-size: 2rem;
+    }
+
+    .title-ghost {
+        font-size: 4rem;
+    }
+
+    .ghost {
+        font-size: 3rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .title-content h1 {
+        font-size: 4rem;
+    }
+
+    .ghost {
+        font-size: 5rem;
+    }
+}

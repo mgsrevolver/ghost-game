@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Graham's Ghost Bash</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Title Screen -->
+    <div id="title-screen" class="screen active">
+        <div class="title-content">
+            <h1>Graham's<br>Ghost Bash</h1>
+            <div class="title-ghost">👻</div>
+            <button id="start-button" class="big-button">TAP TO START</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <!-- HUD -->
+        <div id="hud">
+            <div id="gummy-counter">
+                <span class="gummy-icon">🍬</span>
+                <span id="gummy-count">0</span>
+            </div>
+            <div id="room-indicator">Room <span id="room-number">1</span>/3</div>
+        </div>
+
+        <!-- Game Area -->
+        <div id="game-area">
+            <!-- Room backgrounds will be set via CSS classes -->
+            <div id="room" class="room arcade-room">
+                <!-- Darkness overlay -->
+                <div id="darkness-overlay"></div>
+
+                <!-- Ghosts container -->
+                <div id="ghosts-container"></div>
+
+                <!-- Gummy bears container -->
+                <div id="gummies-container"></div>
+
+                <!-- Chuck E Cheese -->
+                <div id="chuck-e" class="hidden">
+                    <div class="chuck-e-body">
+                        <svg viewBox="0 0 80 120" width="80" height="120">
+                            <!-- Ears -->
+                            <circle cx="20" cy="20" r="18" fill="#808080"/>
+                            <circle cx="20" cy="20" r="12" fill="#ffcccc"/>
+                            <circle cx="60" cy="20" r="18" fill="#808080"/>
+                            <circle cx="60" cy="20" r="12" fill="#ffcccc"/>
+                            <!-- Head -->
+                            <ellipse cx="40" cy="45" rx="32" ry="28" fill="#808080"/>
+                            <!-- Face/muzzle -->
+                            <ellipse cx="40" cy="52" rx="18" ry="14" fill="#d0d0d0"/>
+                            <!-- Eyes -->
+                            <ellipse cx="28" cy="40" rx="8" ry="10" fill="#fff"/>
+                            <ellipse cx="52" cy="40" rx="8" ry="10" fill="#fff"/>
+                            <circle cx="30" cy="42" r="5" fill="#333"/>
+                            <circle cx="54" cy="42" r="5" fill="#333"/>
+                            <circle cx="31" cy="40" r="2" fill="#fff"/>
+                            <circle cx="55" cy="40" r="2" fill="#fff"/>
+                            <!-- Nose -->
+                            <ellipse cx="40" cy="50" rx="6" ry="5" fill="#333"/>
+                            <ellipse cx="40" cy="49" rx="2" ry="1" fill="#666"/>
+                            <!-- Smile -->
+                            <path d="M30 58 Q40 68 50 58" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Whiskers -->
+                            <line x1="10" y1="48" x2="22" y2="52" stroke="#555" stroke-width="1.5"/>
+                            <line x1="10" y1="55" x2="22" y2="55" stroke="#555" stroke-width="1.5"/>
+                            <line x1="58" y1="52" x2="70" y2="48" stroke="#555" stroke-width="1.5"/>
+                            <line x1="58" y1="55" x2="70" y2="55" stroke="#555" stroke-width="1.5"/>
+                            <!-- Body/Shirt -->
+                            <ellipse cx="40" cy="90" rx="28" ry="25" fill="#7B2D8E"/>
+                            <!-- Letter C on shirt -->
+                            <text x="40" y="98" text-anchor="middle" fill="#FFD700" font-size="24" font-weight="bold" font-family="Arial">C</text>
+                            <!-- Arms -->
+                            <ellipse cx="12" cy="85" rx="10" ry="15" fill="#808080"/>
+                            <ellipse cx="68" cy="85" rx="10" ry="15" fill="#808080"/>
+                            <!-- Hands waving -->
+                            <circle cx="68" cy="70" r="8" fill="#808080" class="waving-hand"/>
+                        </svg>
+                    </div>
+                    <div class="chuck-e-hearts hidden">
+                        <svg viewBox="0 0 60 40" width="60" height="40">
+                            <path d="M15 20 C15 12 5 12 5 20 C5 28 15 35 15 35 C15 35 25 28 25 20 C25 12 15 12 15 20" fill="#ff69b4"/>
+                            <path d="M45 15 C45 9 38 9 38 15 C38 21 45 26 45 26 C45 26 52 21 52 15 C52 9 45 9 45 15" fill="#ff1493"/>
+                            <path d="M30 25 C30 20 24 20 24 25 C24 30 30 34 30 34 C30 34 36 30 36 25 C36 20 30 20 30 25" fill="#ff69b4"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Room decorations (set per room) -->
+                <div id="room-decor"></div>
+            </div>
+        </div>
+
+        <!-- Light Switch -->
+        <div id="light-switch-container">
+            <button id="light-switch" class="on">
+                <div class="switch-plate">
+                    <div class="switch-toggle"></div>
+                </div>
+                <span class="switch-label">LIGHTS</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Room Complete Screen -->
+    <div id="room-complete-screen" class="screen">
+        <div class="complete-content">
+            <h2>Room Clear!</h2>
+            <div class="earned-gummies">
+                +<span id="earned-count">0</span> 🍬
+            </div>
+            <button id="next-room-button" class="big-button">NEXT ROOM</button>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory-screen" class="screen">
+        <div class="victory-content">
+            <h1>YOU DID IT!</h1>
+            <div class="victory-ghost">👻✨</div>
+            <div class="total-gummies">
+                <span id="total-gummies">0</span> 🍬
+            </div>
+            <p>Great job, Graham!</p>
+            <div class="chuck-e-celebrate">
+                <svg viewBox="0 0 100 80" width="100" height="80">
+                    <!-- Chuck E celebrating -->
+                    <!-- Ears -->
+                    <circle cx="25" cy="15" r="12" fill="#808080"/>
+                    <circle cx="25" cy="15" r="8" fill="#ffcccc"/>
+                    <circle cx="55" cy="15" r="12" fill="#808080"/>
+                    <circle cx="55" cy="15" r="8" fill="#ffcccc"/>
+                    <!-- Head -->
+                    <ellipse cx="40" cy="35" rx="22" ry="20" fill="#808080"/>
+                    <!-- Face -->
+                    <ellipse cx="40" cy="40" rx="12" ry="10" fill="#d0d0d0"/>
+                    <!-- Eyes (happy squint) -->
+                    <path d="M28 32 Q32 28 36 32" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M44 32 Q48 28 52 32" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round"/>
+                    <!-- Nose -->
+                    <ellipse cx="40" cy="38" rx="4" ry="3" fill="#333"/>
+                    <!-- Big smile -->
+                    <path d="M30 45 Q40 55 50 45" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Party hat -->
+                    <polygon points="40,0 32,20 48,20" fill="#ff6b6b"/>
+                    <circle cx="40" cy="0" r="4" fill="#ffd700"/>
+                    <!-- Confetti -->
+                    <rect x="70" y="20" width="6" height="6" fill="#ff0066" transform="rotate(30 73 23)"/>
+                    <rect x="80" y="35" width="5" height="5" fill="#00ff66" transform="rotate(-20 82 37)"/>
+                    <rect x="10" y="25" width="5" height="5" fill="#6600ff" transform="rotate(45 12 27)"/>
+                    <rect x="5" y="45" width="6" height="6" fill="#ffff00" transform="rotate(-30 8 48)"/>
+                    <circle cx="85" y="55" r="3" fill="#ff69b4"/>
+                    <circle cx="15" y="60" r="3" fill="#00ffff"/>
+                </svg>
+            </div>
+            <button id="play-again-button" class="big-button">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <!-- Kung Fu Effect Overlay -->
+    <div id="kung-fu-effect" class="hidden">
+        <span class="hiya-text">HI-YA!</span>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
