@@ -1,258 +1,131 @@
 // Graham's Ghost Bash - Game Logic
 
 // ============================================
-// SOUND EFFECTS (Web Audio API)
+// SOUND EFFECTS (Web Audio API - Mobile Fixed)
 // ============================================
 let audioContext = null;
 let audioUnlocked = false;
+let masterGain = null;
 
 function initAudio() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.gain.setValueAtTime(0.5, audioContext.currentTime);
+            masterGain.connect(audioContext.destination);
+        }
+
+        // Always try to resume on interaction
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log('AudioContext resumed');
+            });
+        }
+
+        // Unlock audio on first interaction
+        if (!audioUnlocked && audioContext.state === 'running') {
+            // Play a very short beep to fully unlock
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            gain.gain.setValueAtTime(0.001, audioContext.currentTime); // Nearly silent
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.01);
+            audioUnlocked = true;
+            console.log('Audio unlocked');
+        }
+    } catch (e) {
+        console.log('Audio init error:', e);
     }
-
-    // Resume audio context on user interaction (required for mobile)
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
-
-    // iOS/Safari requires playing a sound during a user gesture to "unlock" audio
-    if (!audioUnlocked) {
-        unlockAudio();
-    }
-}
-
-function unlockAudio() {
-    if (!audioContext || audioUnlocked) return;
-
-    // Create a short silent buffer and play it to unlock audio on iOS
-    const buffer = audioContext.createBuffer(1, 1, 22050);
-    const source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioContext.destination);
-    source.start(0);
-
-    // Also create and immediately stop an oscillator (belt and suspenders approach)
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    gain.gain.setValueAtTime(0, audioContext.currentTime); // Silent
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    osc.start(0);
-    osc.stop(audioContext.currentTime + 0.001);
-
-    audioUnlocked = true;
-    console.log('Audio unlocked for mobile');
 }
 
 // Play a sound effect
 function playSound(type) {
+    try {
+        if (!audioContext || audioContext.state !== 'running') {
+            // Try to init again
+            initAudio();
+            if (!audioContext || audioContext.state !== 'running') return;
+        }
+
+        switch(type) {
+            case 'lightOn':
+                playTone([800, 1200], 0.1, 'square', 0.3);
+                break;
+            case 'lightOff':
+                playTone([400, 200], 0.1, 'square', 0.3);
+                break;
+            case 'kungFu':
+                playTone([200, 600, 800], 0.15, 'sawtooth', 0.4);
+                playTone([100], 0.1, 'square', 0.3, 0.05);
+                break;
+            case 'ghostHit':
+                playTone([600, 650], 0.08, 'sine', 0.2);
+                playTone([700, 750], 0.08, 'sine', 0.2, 0.08);
+                playTone([800, 850], 0.08, 'sine', 0.2, 0.16);
+                break;
+            case 'gummyCollect':
+                playTone([880, 1108], 0.15, 'sine', 0.3);
+                break;
+            case 'chuckEAppear':
+                playTone([523], 0.12, 'sine', 0.25);
+                playTone([659], 0.12, 'sine', 0.25, 0.1);
+                playTone([784], 0.12, 'sine', 0.25, 0.2);
+                break;
+            case 'hug':
+                playTone([400, 500, 600], 0.3, 'sine', 0.3);
+                break;
+            case 'victory':
+                playTone([523], 0.2, 'square', 0.2);
+                playTone([659], 0.2, 'square', 0.2, 0.15);
+                playTone([784], 0.2, 'square', 0.2, 0.3);
+                playTone([1047], 0.3, 'square', 0.25, 0.45);
+                break;
+            case 'roomComplete':
+                playTone([659], 0.15, 'sine', 0.25);
+                playTone([784], 0.15, 'sine', 0.25, 0.12);
+                playTone([880], 0.2, 'sine', 0.25, 0.24);
+                break;
+        }
+    } catch (e) {
+        console.log('Sound error:', e);
+    }
+}
+
+// Simplified tone player
+function playTone(frequencies, duration, type, volume, delay = 0) {
     if (!audioContext) return;
 
-    // Make sure context is running
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
+    const startTime = audioContext.currentTime + delay;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = type;
+    osc.connect(gain);
+    gain.connect(masterGain);
+
+    // Set frequencies over time
+    if (frequencies.length === 1) {
+        osc.frequency.setValueAtTime(frequencies[0], startTime);
+    } else {
+        const step = duration / frequencies.length;
+        frequencies.forEach((freq, i) => {
+            if (i === 0) {
+                osc.frequency.setValueAtTime(freq, startTime);
+            } else {
+                osc.frequency.linearRampToValueAtTime(freq, startTime + (step * i));
+            }
+        });
     }
 
-    const now = audioContext.currentTime;
+    // Volume envelope
+    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
 
-    switch(type) {
-        case 'lightOn':
-            playLightSwitch(true);
-            break;
-        case 'lightOff':
-            playLightSwitch(false);
-            break;
-        case 'kungFu':
-            playKungFu();
-            break;
-        case 'ghostHit':
-            playGhostGiggle();
-            break;
-        case 'gummyCollect':
-            playGummyCollect();
-            break;
-        case 'chuckEAppear':
-            playChuckESound();
-            break;
-        case 'hug':
-            playHugSound();
-            break;
-        case 'victory':
-            playVictorySound();
-            break;
-        case 'roomComplete':
-            playRoomComplete();
-            break;
-    }
-}
-
-function playLightSwitch(on) {
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(on ? 800 : 400, audioContext.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(on ? 1200 : 200, audioContext.currentTime + 0.1);
-
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.1);
-}
-
-function playKungFu() {
-    // "HI-YA!" sound - quick ascending tone
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(200, audioContext.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
-    osc.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.15);
-
-    gain.gain.setValueAtTime(0.4, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.2);
-
-    // Add a punch noise
-    const noise = audioContext.createOscillator();
-    const noiseGain = audioContext.createGain();
-    noise.connect(noiseGain);
-    noiseGain.connect(audioContext.destination);
-
-    noise.type = 'square';
-    noise.frequency.setValueAtTime(100, audioContext.currentTime + 0.05);
-    noiseGain.gain.setValueAtTime(0.3, audioContext.currentTime + 0.05);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-
-    noise.start(audioContext.currentTime + 0.05);
-    noise.stop(audioContext.currentTime + 0.15);
-}
-
-function playGhostGiggle() {
-    // Cute ghost giggle - wobbly high tone
-    for (let i = 0; i < 3; i++) {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-
-        osc.type = 'sine';
-        const baseFreq = 600 + (i * 100);
-        osc.frequency.setValueAtTime(baseFreq, audioContext.currentTime + (i * 0.08));
-        osc.frequency.setValueAtTime(baseFreq + 50, audioContext.currentTime + (i * 0.08) + 0.04);
-
-        gain.gain.setValueAtTime(0.2, audioContext.currentTime + (i * 0.08));
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (i * 0.08) + 0.08);
-
-        osc.start(audioContext.currentTime + (i * 0.08));
-        osc.stop(audioContext.currentTime + (i * 0.08) + 0.08);
-    }
-}
-
-function playGummyCollect() {
-    // Happy coin-like collect sound
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, audioContext.currentTime);
-    osc.frequency.setValueAtTime(1108, audioContext.currentTime + 0.1);
-
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.2);
-}
-
-function playChuckESound() {
-    // Friendly appearance jingle
-    const notes = [523, 659, 784]; // C5, E5, G5
-    notes.forEach((freq, i) => {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, audioContext.currentTime + (i * 0.1));
-
-        gain.gain.setValueAtTime(0.25, audioContext.currentTime + (i * 0.1));
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (i * 0.1) + 0.15);
-
-        osc.start(audioContext.currentTime + (i * 0.1));
-        osc.stop(audioContext.currentTime + (i * 0.1) + 0.15);
-    });
-}
-
-function playHugSound() {
-    // Warm, happy hug sound
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, audioContext.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.3);
-
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime + 0.2);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.4);
-}
-
-function playVictorySound() {
-    // Triumphant victory fanfare
-    const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
-    notes.forEach((freq, i) => {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, audioContext.currentTime + (i * 0.15));
-
-        gain.gain.setValueAtTime(0.2, audioContext.currentTime + (i * 0.15));
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (i * 0.15) + 0.3);
-
-        osc.start(audioContext.currentTime + (i * 0.15));
-        osc.stop(audioContext.currentTime + (i * 0.15) + 0.3);
-    });
-}
-
-function playRoomComplete() {
-    // Level complete jingle
-    const notes = [659, 784, 880]; // E5, G5, A5
-    notes.forEach((freq, i) => {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, audioContext.currentTime + (i * 0.12));
-
-        gain.gain.setValueAtTime(0.25, audioContext.currentTime + (i * 0.12));
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (i * 0.12) + 0.2);
-
-        osc.start(audioContext.currentTime + (i * 0.12));
-        osc.stop(audioContext.currentTime + (i * 0.12) + 0.2);
-    });
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.01);
 }
 
 // ============================================
@@ -351,25 +224,31 @@ function init() {
 
 // Helper to add touch/click listener
 function addTouchListener(element, callback) {
+    let touching = false;
+
     element.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        initAudio(); // Initialize/resume audio on every touch
+        touching = true;
+        initAudio();
         callback();
     }, { passive: false });
 
+    element.addEventListener('touchend', () => {
+        touching = false;
+    }, { passive: true });
+
     element.addEventListener('click', (e) => {
-        // Only trigger on click if not a touch device
-        if (!('ontouchstart' in window)) {
-            initAudio(); // Initialize/resume audio on every click
+        // Only trigger click if it wasn't a touch
+        if (!touching) {
+            initAudio();
             callback();
         }
     });
 }
 
-// Also listen for any touch on the document to unlock audio early
-document.addEventListener('touchstart', function unlockOnTouch() {
-    initAudio();
-}, { once: false, passive: true });
+// Unlock audio on first document touch
+document.addEventListener('touchstart', () => initAudio(), { passive: true });
+document.addEventListener('click', () => initAudio(), { passive: true });
 
 // ============================================
 // GAME FLOW
