@@ -4,20 +4,55 @@
 // SOUND EFFECTS (Web Audio API)
 // ============================================
 let audioContext = null;
+let audioUnlocked = false;
 
 function initAudio() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
+
     // Resume audio context on user interaction (required for mobile)
     if (audioContext.state === 'suspended') {
         audioContext.resume();
     }
+
+    // iOS/Safari requires playing a sound during a user gesture to "unlock" audio
+    if (!audioUnlocked) {
+        unlockAudio();
+    }
+}
+
+function unlockAudio() {
+    if (!audioContext || audioUnlocked) return;
+
+    // Create a short silent buffer and play it to unlock audio on iOS
+    const buffer = audioContext.createBuffer(1, 1, 22050);
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+
+    // Also create and immediately stop an oscillator (belt and suspenders approach)
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0, audioContext.currentTime); // Silent
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start(0);
+    osc.stop(audioContext.currentTime + 0.001);
+
+    audioUnlocked = true;
+    console.log('Audio unlocked for mobile');
 }
 
 // Play a sound effect
 function playSound(type) {
     if (!audioContext) return;
+
+    // Make sure context is running
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
 
     const now = audioContext.currentTime;
 
@@ -318,18 +353,23 @@ function init() {
 function addTouchListener(element, callback) {
     element.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        initAudio(); // Initialize audio on first touch
+        initAudio(); // Initialize/resume audio on every touch
         callback();
     }, { passive: false });
 
     element.addEventListener('click', (e) => {
         // Only trigger on click if not a touch device
         if (!('ontouchstart' in window)) {
-            initAudio(); // Initialize audio on first click
+            initAudio(); // Initialize/resume audio on every click
             callback();
         }
     });
 }
+
+// Also listen for any touch on the document to unlock audio early
+document.addEventListener('touchstart', function unlockOnTouch() {
+    initAudio();
+}, { once: false, passive: true });
 
 // ============================================
 // GAME FLOW
