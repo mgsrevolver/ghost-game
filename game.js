@@ -232,7 +232,8 @@ const gameState = {
     roomGummies: 0,
     chuckEVisible: false,
     chuckETimeout: null,
-    gameStarted: false
+    gameStarted: false,
+    tutorialShown: false
 };
 
 // Room configurations
@@ -703,6 +704,15 @@ function createGhost(x, y, index) {
 function toggleLights() {
     gameState.lightsOn = !gameState.lightsOn;
 
+    // Hide tutorial hint after first use
+    if (!gameState.tutorialShown) {
+        gameState.tutorialShown = true;
+        const hint = document.getElementById('switch-hint');
+        const lightSwitch = document.getElementById('light-switch');
+        if (hint) hint.classList.remove('hint-visible');
+        if (lightSwitch) lightSwitch.classList.remove('hint-glow');
+    }
+
     if (gameState.lightsOn) {
         playSound('lightOn');
         // Lights ON - ghosts fade away
@@ -907,6 +917,14 @@ function showVictory() {
 function restartGame() {
     gameState.currentRoom = 0;
     gameState.gummyBears = 0;
+    gameState.tutorialShown = false;
+
+    // Show tutorial hint again
+    const hint = document.getElementById('switch-hint');
+    const lightSwitch = document.getElementById('light-switch');
+    if (hint) hint.classList.add('hint-visible');
+    if (lightSwitch) lightSwitch.classList.add('hint-glow');
+
     updateGummyCounter();
     showScreen('game');
     setupRoom(0);
