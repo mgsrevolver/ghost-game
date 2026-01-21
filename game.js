@@ -1,4 +1,45 @@
-// Graham's Ghost Bash - Game Logic
+// Graham's Ghost Bash - Game Logic (2.5D Edition)
+
+// ============================================
+// GAME LOOP & TIMING
+// ============================================
+let lastTime = 0;
+let gameLoopId = null;
+
+function gameLoop(currentTime) {
+    if (!gameState.gameStarted) {
+        gameLoopId = requestAnimationFrame(gameLoop);
+        return;
+    }
+
+    const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+    lastTime = currentTime;
+
+    // Cap delta time to prevent huge jumps
+    const dt = Math.min(deltaTime, 0.1);
+
+    // Update all game systems
+    updatePlayer(dt);
+    updateGhosts(dt);
+    checkCollisions();
+    updateDepthSorting();
+
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function startGameLoop() {
+    if (!gameLoopId) {
+        lastTime = performance.now();
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+}
+
+function stopGameLoop() {
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
+}
 
 // ============================================
 // SOUND EFFECTS (Web Audio API - Mobile Fixed)
@@ -88,6 +129,10 @@ function playSound(type) {
                 playTone([784], 0.15, 'sine', 0.25, 0.12);
                 playTone([880], 0.2, 'sine', 0.25, 0.24);
                 break;
+            case 'boo':
+                // Spooky descending tone
+                playTone([400, 200, 100], 0.3, 'sawtooth', 0.4);
+                break;
         }
     } catch (e) {
         console.log('Sound error:', e);
@@ -141,7 +186,34 @@ const gameState = {
     chuckEVisible: false,
     chuckETimeout: null,
     gameStarted: false,
-    tutorialShown: false
+    tutorialShown: false,
+
+    // Player state (2.5D)
+    player: {
+        x: 50,           // Percentage position
+        y: 70,
+        targetX: null,
+        targetY: null,
+        speed: 25,       // Percent per second
+        facing: 'right',
+        walking: false,
+        hp: 3,
+        maxHp: 3,
+        invulnerable: false,
+        invulnerableTimer: 0,
+        knockback: { x: 0, y: 0, timer: 0 }
+    },
+
+    // Ghost AI state
+    ghostData: [],
+
+    // Input state
+    keys: {
+        up: false,
+        down: false,
+        left: false,
+        right: false
+    }
 };
 
 // Room configurations
@@ -204,7 +276,14 @@ const elements = {
     totalGummies: document.getElementById('total-gummies'),
     nextRoomButton: document.getElementById('next-room-button'),
     playAgainButton: document.getElementById('play-again-button'),
-    kungFuEffect: document.getElementById('kung-fu-effect')
+    kungFuEffect: document.getElementById('kung-fu-effect'),
+    // 2.5D additions
+    player: document.getElementById('player'),
+    hpContainer: document.getElementById('hp-container'),
+    moveTarget: document.getElementById('move-target'),
+    booEffect: document.getElementById('boo-effect'),
+    respawnScreen: document.getElementById('respawn-screen'),
+    tooFarText: document.getElementById('too-far-text')
 };
 
 // ============================================
@@ -216,10 +295,108 @@ function init() {
     addTouchListener(elements.lightSwitch, toggleLights);
     addTouchListener(elements.nextRoomButton, nextRoom);
     addTouchListener(elements.playAgainButton, restartGame);
-    addTouchListener(elements.chuckE, hugChuckE);
+    // Note: Chuck E now heals on proximity, not tap
+
+    // Tap-to-move on game area
+    elements.room.addEventListener('touchstart', handleRoomTouch, { passive: false });
+    elements.room.addEventListener('click', handleRoomClick);
+
+    // Keyboard controls
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    // Respawn button
+    const respawnBtn = document.getElementById('respawn-button');
+    if (respawnBtn) {
+        addTouchListener(respawnBtn, respawnPlayer);
+    }
 
     // Prevent default touch behaviors
     document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+    // Start the game loop
+    startGameLoop();
+}
+
+// ============================================
+// INPUT HANDLING
+// ============================================
+function handleRoomTouch(e) {
+    if (!gameState.gameStarted) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    setMoveTarget(touch.clientX, touch.clientY);
+}
+
+function handleRoomClick(e) {
+    if (!gameState.gameStarted) return;
+    // Don't respond to clicks that were touches
+    if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+
+    setMoveTarget(e.clientX, e.clientY);
+}
+
+function setMoveTarget(clientX, clientY) {
+    const roomRect = elements.room.getBoundingClientRect();
+    const x = ((clientX - roomRect.left) / roomRect.width) * 100;
+    const y = ((clientY - roomRect.top) / roomRect.height) * 100;
+
+    // Clamp to room bounds
+    gameState.player.targetX = Math.max(5, Math.min(95, x));
+    gameState.player.targetY = Math.max(20, Math.min(85, y));
+
+    // Show move target indicator briefly
+    showMoveTarget(gameState.player.targetX, gameState.player.targetY);
+}
+
+function showMoveTarget(x, y) {
+    if (!elements.moveTarget) return;
+    elements.moveTarget.style.left = x + '%';
+    elements.moveTarget.style.top = y + '%';
+    elements.moveTarget.classList.add('visible');
+
+    setTimeout(() => {
+        elements.moveTarget.classList.remove('visible');
+    }, 300);
+}
+
+function handleKeyDown(e) {
+    switch(e.key.toLowerCase()) {
+        case 'w': case 'arrowup':
+            gameState.keys.up = true;
+            break;
+        case 's': case 'arrowdown':
+            gameState.keys.down = true;
+            break;
+        case 'a': case 'arrowleft':
+            gameState.keys.left = true;
+            break;
+        case 'd': case 'arrowright':
+            gameState.keys.right = true;
+            break;
+        case ' ':
+            // Space to attack nearby ghost
+            attackNearbyGhost();
+            break;
+    }
+}
+
+function handleKeyUp(e) {
+    switch(e.key.toLowerCase()) {
+        case 'w': case 'arrowup':
+            gameState.keys.up = false;
+            break;
+        case 's': case 'arrowdown':
+            gameState.keys.down = false;
+            break;
+        case 'a': case 'arrowleft':
+            gameState.keys.left = false;
+            break;
+        case 'd': case 'arrowright':
+            gameState.keys.right = false;
+            break;
+    }
 }
 
 // Helper to add touch/click listener
@@ -251,13 +428,487 @@ document.addEventListener('touchstart', () => initAudio(), { passive: true });
 document.addEventListener('click', () => initAudio(), { passive: true });
 
 // ============================================
+// PLAYER UPDATE
+// ============================================
+function updatePlayer(dt) {
+    const player = gameState.player;
+
+    // Update invulnerability timer
+    if (player.invulnerable) {
+        player.invulnerableTimer -= dt;
+        if (player.invulnerableTimer <= 0) {
+            player.invulnerable = false;
+            if (elements.player) {
+                elements.player.classList.remove('invulnerable');
+            }
+        }
+    }
+
+    // Update knockback
+    if (player.knockback.timer > 0) {
+        player.knockback.timer -= dt;
+        player.x += player.knockback.x * dt;
+        player.y += player.knockback.y * dt;
+        // Clamp position
+        player.x = Math.max(5, Math.min(95, player.x));
+        player.y = Math.max(20, Math.min(85, player.y));
+    }
+
+    // Handle keyboard movement
+    let dx = 0;
+    let dy = 0;
+    if (gameState.keys.up) dy -= 1;
+    if (gameState.keys.down) dy += 1;
+    if (gameState.keys.left) dx -= 1;
+    if (gameState.keys.right) dx += 1;
+
+    // If keyboard input, clear tap target
+    if (dx !== 0 || dy !== 0) {
+        player.targetX = null;
+        player.targetY = null;
+
+        // Normalize diagonal movement
+        if (dx !== 0 && dy !== 0) {
+            const mag = Math.sqrt(dx * dx + dy * dy);
+            dx /= mag;
+            dy /= mag;
+        }
+
+        player.x += dx * player.speed * dt;
+        player.y += dy * player.speed * dt;
+        player.walking = true;
+
+        if (dx !== 0) {
+            player.facing = dx > 0 ? 'right' : 'left';
+        }
+    }
+    // Handle tap-to-move
+    else if (player.targetX !== null && player.targetY !== null) {
+        const tdx = player.targetX - player.x;
+        const tdy = player.targetY - player.y;
+        const dist = Math.sqrt(tdx * tdx + tdy * tdy);
+
+        if (dist > 1) {
+            const moveX = (tdx / dist) * player.speed * dt;
+            const moveY = (tdy / dist) * player.speed * dt;
+
+            player.x += moveX;
+            player.y += moveY;
+            player.walking = true;
+
+            if (Math.abs(tdx) > 0.5) {
+                player.facing = tdx > 0 ? 'right' : 'left';
+            }
+        } else {
+            // Reached target
+            player.targetX = null;
+            player.targetY = null;
+            player.walking = false;
+        }
+    } else {
+        player.walking = false;
+    }
+
+    // Clamp to bounds
+    player.x = Math.max(5, Math.min(95, player.x));
+    player.y = Math.max(20, Math.min(85, player.y));
+
+    // Update DOM
+    updatePlayerDOM();
+}
+
+function updatePlayerDOM() {
+    if (!elements.player) return;
+    const player = gameState.player;
+
+    elements.player.style.left = player.x + '%';
+    elements.player.style.top = player.y + '%';
+    elements.player.classList.toggle('walking', player.walking);
+    elements.player.classList.toggle('facing-left', player.facing === 'left');
+    elements.player.classList.toggle('facing-right', player.facing === 'right');
+}
+
+// ============================================
+// GHOST AI UPDATE
+// ============================================
+function updateGhosts(dt) {
+    if (gameState.lightsOn) return; // Ghosts inactive when lights on
+
+    gameState.ghostData.forEach((data, index) => {
+        const ghost = gameState.ghosts[index];
+        if (!ghost || ghost.classList.contains('kung-fu')) return;
+
+        const player = gameState.player;
+        const dx = player.x - data.x;
+        const dy = player.y - data.y;
+        const distToPlayer = Math.sqrt(dx * dx + dy * dy);
+
+        // Detection radius (percentage of room)
+        const detectionRadius = 25;
+        const attackRadius = 8;
+
+        switch(data.state) {
+            case 'patrol':
+                // Random wandering
+                data.patrolTimer -= dt;
+                if (data.patrolTimer <= 0) {
+                    // Pick new patrol target
+                    data.patrolTargetX = data.homeX + (Math.random() - 0.5) * 20;
+                    data.patrolTargetY = data.homeY + (Math.random() - 0.5) * 20;
+                    data.patrolTargetX = Math.max(5, Math.min(95, data.patrolTargetX));
+                    data.patrolTargetY = Math.max(20, Math.min(85, data.patrolTargetY));
+                    data.patrolTimer = 2 + Math.random() * 3;
+                }
+
+                // Move toward patrol target
+                const pdx = data.patrolTargetX - data.x;
+                const pdy = data.patrolTargetY - data.y;
+                const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+                if (pDist > 1) {
+                    data.x += (pdx / pDist) * data.patrolSpeed * dt;
+                    data.y += (pdy / pDist) * data.patrolSpeed * dt;
+                }
+
+                // Check for player detection
+                if (distToPlayer < detectionRadius) {
+                    data.state = 'alert';
+                    data.alertTimer = 1.0; // 1 second notice delay
+                    ghost.classList.add('alert');
+                }
+                break;
+
+            case 'alert':
+                // Brief pause before chasing
+                data.alertTimer -= dt;
+                if (data.alertTimer <= 0) {
+                    data.state = 'chase';
+                    ghost.classList.remove('alert');
+                    ghost.classList.add('chasing');
+                }
+                break;
+
+            case 'chase':
+                // Move toward player (slower than player so escape is possible)
+                if (distToPlayer > attackRadius) {
+                    data.x += (dx / distToPlayer) * data.chaseSpeed * dt;
+                    data.y += (dy / distToPlayer) * data.chaseSpeed * dt;
+                }
+
+                // Lost player (lights on handled above, or far away)
+                if (distToPlayer > detectionRadius * 1.5) {
+                    data.state = 'patrol';
+                    data.patrolTimer = 0;
+                    ghost.classList.remove('chasing');
+                }
+                break;
+
+            case 'cooldown':
+                // After attacking, brief stun
+                data.cooldownTimer -= dt;
+                if (data.cooldownTimer <= 0) {
+                    data.state = 'chase';
+                }
+                break;
+        }
+
+        // Update ghost position
+        data.x = Math.max(5, Math.min(95, data.x));
+        data.y = Math.max(20, Math.min(85, data.y));
+        ghost.style.left = data.x + '%';
+        ghost.style.top = data.y + '%';
+    });
+}
+
+// ============================================
+// COLLISION DETECTION
+// ============================================
+function checkCollisions() {
+    if (!gameState.gameStarted) return;
+
+    const player = gameState.player;
+
+    // Ghost collisions (only when lights off)
+    if (!gameState.lightsOn && !player.invulnerable) {
+        gameState.ghostData.forEach((data, index) => {
+            const ghost = gameState.ghosts[index];
+            if (!ghost || ghost.classList.contains('kung-fu')) return;
+
+            const dx = player.x - data.x;
+            const dy = player.y - data.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 8) { // Collision radius
+                ghostAttackPlayer(data, index);
+            }
+        });
+    }
+
+    // Gummy collection (walk over to collect)
+    const gummies = elements.gummiesContainer.querySelectorAll('.gummy:not(.collected)');
+    gummies.forEach(gummy => {
+        const gummyX = parseFloat(gummy.style.left);
+        const gummyY = parseFloat(gummy.style.top);
+        const dx = player.x - gummyX;
+        const dy = player.y - gummyY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 8) {
+            collectGummy(gummy);
+        }
+    });
+
+    // Chuck E proximity healing
+    if (gameState.chuckEVisible && player.hp < player.maxHp) {
+        const chuckERect = elements.chuckE.getBoundingClientRect();
+        const roomRect = elements.room.getBoundingClientRect();
+        const chuckEX = ((chuckERect.left + chuckERect.width / 2) - roomRect.left) / roomRect.width * 100;
+        const chuckEY = ((chuckERect.top + chuckERect.height / 2) - roomRect.top) / roomRect.height * 100;
+
+        const dx = player.x - chuckEX;
+        const dy = player.y - chuckEY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 12) {
+            healPlayer();
+        }
+    }
+}
+
+// ============================================
+// GHOST ATTACK
+// ============================================
+function ghostAttackPlayer(ghostData, ghostIndex) {
+    const player = gameState.player;
+    const ghost = gameState.ghosts[ghostIndex];
+
+    // Play BOO effect
+    playSound('boo');
+    showBooEffect();
+
+    // Damage player
+    player.hp--;
+    updateHPDisplay();
+
+    // Knockback
+    const dx = player.x - ghostData.x;
+    const dy = player.y - ghostData.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    player.knockback.x = (dx / dist) * 100;
+    player.knockback.y = (dy / dist) * 100;
+    player.knockback.timer = 0.2;
+
+    // Invulnerability frames
+    player.invulnerable = true;
+    player.invulnerableTimer = 2.0;
+    if (elements.player) {
+        elements.player.classList.add('invulnerable');
+    }
+
+    // Ghost cooldown
+    ghostData.state = 'cooldown';
+    ghostData.cooldownTimer = 1.5;
+    ghost.classList.remove('chasing');
+
+    // Check for death
+    if (player.hp <= 0) {
+        playerDeath();
+    }
+}
+
+function showBooEffect() {
+    if (!elements.booEffect) return;
+    elements.booEffect.classList.remove('hidden');
+    elements.booEffect.classList.add('active');
+
+    setTimeout(() => {
+        elements.booEffect.classList.remove('active');
+        elements.booEffect.classList.add('hidden');
+    }, 500);
+}
+
+// ============================================
+// HP SYSTEM
+// ============================================
+function updateHPDisplay() {
+    if (!elements.hpContainer) return;
+
+    const hearts = elements.hpContainer.querySelectorAll('.heart');
+    hearts.forEach((heart, index) => {
+        if (index < gameState.player.hp) {
+            heart.classList.remove('empty');
+            heart.classList.add('full');
+        } else {
+            heart.classList.remove('full');
+            heart.classList.add('empty');
+        }
+    });
+}
+
+function healPlayer() {
+    if (!gameState.chuckEVisible) return;
+    if (gameState.player.hp >= gameState.player.maxHp) return;
+
+    playSound('hug');
+    gameState.player.hp++;
+    updateHPDisplay();
+
+    // Show hearts
+    elements.chuckEHearts.classList.remove('hidden');
+    elements.chuckEHearts.classList.add('visible');
+
+    // Hide Chuck E after healing
+    setTimeout(() => {
+        hideChuckE();
+    }, 1000);
+}
+
+function playerDeath() {
+    gameState.gameStarted = false;
+    gameState.player.targetX = null;
+    gameState.player.targetY = null;
+
+    // Show respawn screen
+    if (elements.respawnScreen) {
+        elements.respawnScreen.classList.add('active');
+    }
+}
+
+function respawnPlayer() {
+    // Reset player
+    gameState.player.hp = gameState.player.maxHp;
+    gameState.player.x = 50;
+    gameState.player.y = 70;
+    gameState.player.invulnerable = true;
+    gameState.player.invulnerableTimer = 2.0;
+    if (elements.player) {
+        elements.player.classList.add('invulnerable');
+    }
+
+    // Reset ghosts to patrol
+    gameState.ghostData.forEach((data, index) => {
+        data.state = 'patrol';
+        data.x = data.homeX;
+        data.y = data.homeY;
+        const ghost = gameState.ghosts[index];
+        if (ghost) {
+            ghost.classList.remove('alert', 'chasing');
+        }
+    });
+
+    // Hide respawn screen
+    if (elements.respawnScreen) {
+        elements.respawnScreen.classList.remove('active');
+    }
+
+    updateHPDisplay();
+    updatePlayerDOM();
+    gameState.gameStarted = true;
+}
+
+// ============================================
+// DEPTH SORTING
+// ============================================
+function updateDepthSorting() {
+    // All entities that need depth sorting
+    const entities = [];
+
+    // Player
+    if (elements.player) {
+        entities.push({ element: elements.player, y: gameState.player.y });
+    }
+
+    // Ghosts
+    gameState.ghosts.forEach((ghost, index) => {
+        if (ghost && gameState.ghostData[index]) {
+            entities.push({ element: ghost, y: gameState.ghostData[index].y });
+        }
+    });
+
+    // Gummies
+    const gummies = elements.gummiesContainer.querySelectorAll('.gummy');
+    gummies.forEach(gummy => {
+        entities.push({ element: gummy, y: parseFloat(gummy.style.top) || 0 });
+    });
+
+    // Chuck E
+    if (elements.chuckE && gameState.chuckEVisible) {
+        const rect = elements.chuckE.getBoundingClientRect();
+        const roomRect = elements.room.getBoundingClientRect();
+        const y = ((rect.top + rect.height) - roomRect.top) / roomRect.height * 100;
+        entities.push({ element: elements.chuckE, y: y });
+    }
+
+    // Sort by Y position (higher Y = in front = higher z-index)
+    entities.sort((a, b) => a.y - b.y);
+
+    // Apply z-index (base 10, increment by 1)
+    entities.forEach((entity, index) => {
+        entity.element.style.zIndex = 10 + index;
+    });
+}
+
+// ============================================
+// PROXIMITY COMBAT
+// ============================================
+function attackNearbyGhost() {
+    if (gameState.lightsOn) return;
+
+    const player = gameState.player;
+    const attackRange = 15; // Must be within 15% of room size
+
+    let closestGhost = null;
+    let closestDist = Infinity;
+    let closestIndex = -1;
+
+    gameState.ghostData.forEach((data, index) => {
+        const ghost = gameState.ghosts[index];
+        if (!ghost || ghost.classList.contains('kung-fu')) return;
+        if (!ghost.classList.contains('visible')) return;
+
+        const dx = player.x - data.x;
+        const dy = player.y - data.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < attackRange && dist < closestDist) {
+            closestGhost = ghost;
+            closestDist = dist;
+            closestIndex = index;
+        }
+    });
+
+    if (closestGhost) {
+        kungFuGhost(closestGhost);
+    } else {
+        showTooFarFeedback();
+    }
+}
+
+function showTooFarFeedback() {
+    if (!elements.tooFarText) return;
+    elements.tooFarText.classList.add('visible');
+    setTimeout(() => {
+        elements.tooFarText.classList.remove('visible');
+    }, 800);
+}
+
+// ============================================
 // GAME FLOW
 // ============================================
 function startGame() {
     gameState.gameStarted = true;
     gameState.currentRoom = 0;
     gameState.gummyBears = 0;
+
+    // Reset player
+    gameState.player.hp = gameState.player.maxHp;
+    gameState.player.x = 50;
+    gameState.player.y = 70;
+    gameState.player.targetX = null;
+    gameState.player.targetY = null;
+    gameState.player.invulnerable = false;
+
     updateGummyCounter();
+    updateHPDisplay();
 
     showScreen('game');
     setupRoom(0);
@@ -310,8 +961,16 @@ function setupRoom(roomIndex) {
     elements.ghostsContainer.innerHTML = '';
     elements.gummiesContainer.innerHTML = '';
     gameState.ghosts = [];
+    gameState.ghostData = [];
     gameState.activeGhosts = 0;
     gameState.roomGummies = 0;
+
+    // Reset player position for new room
+    gameState.player.x = 50;
+    gameState.player.y = 70;
+    gameState.player.targetX = null;
+    gameState.player.targetY = null;
+    updatePlayerDOM();
 
     // Set up room decorations
     setupRoomDecor(roomIndex);
@@ -611,10 +1270,41 @@ function createGhost(x, y, index) {
     // Add slight random offset to animation
     ghost.style.animationDelay = (Math.random() * 2) + 's';
 
-    addTouchListener(ghost, () => kungFuGhost(ghost));
+    // Tap to attack (with proximity check)
+    addTouchListener(ghost, () => {
+        const data = gameState.ghostData[index];
+        if (!data) return;
+
+        const player = gameState.player;
+        const dx = player.x - data.x;
+        const dy = player.y - data.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 15) {
+            kungFuGhost(ghost);
+        } else {
+            showTooFarFeedback();
+        }
+    });
 
     elements.ghostsContainer.appendChild(ghost);
     gameState.ghosts.push(ghost);
+
+    // Initialize ghost AI data
+    gameState.ghostData.push({
+        x: x,
+        y: y,
+        homeX: x,
+        homeY: y,
+        state: 'patrol',
+        patrolSpeed: 5,      // Slow wander
+        chaseSpeed: 18,      // Slower than player (25)
+        patrolTimer: Math.random() * 2,
+        patrolTargetX: x,
+        patrolTargetY: y,
+        alertTimer: 0,
+        cooldownTimer: 0
+    });
 }
 
 // ============================================
@@ -640,10 +1330,15 @@ function toggleLights() {
         elements.lightSwitch.classList.add('on');
         elements.lightSwitch.classList.remove('off');
 
-        // Hide remaining ghosts
-        gameState.ghosts.forEach(ghost => {
+        // Hide remaining ghosts and reset their AI to patrol
+        gameState.ghosts.forEach((ghost, index) => {
             if (!ghost.classList.contains('kung-fu')) {
-                ghost.classList.remove('visible');
+                ghost.classList.remove('visible', 'alert', 'chasing');
+            }
+            // Reset ghost AI to patrol when lights on
+            if (gameState.ghostData[index]) {
+                gameState.ghostData[index].state = 'patrol';
+                gameState.ghostData[index].patrolTimer = 0;
             }
         });
 
@@ -837,6 +1532,18 @@ function restartGame() {
     gameState.currentRoom = 0;
     gameState.gummyBears = 0;
     gameState.tutorialShown = false;
+    gameState.gameStarted = true;
+
+    // Reset player
+    gameState.player.hp = gameState.player.maxHp;
+    gameState.player.x = 50;
+    gameState.player.y = 70;
+    gameState.player.targetX = null;
+    gameState.player.targetY = null;
+    gameState.player.invulnerable = false;
+    if (elements.player) {
+        elements.player.classList.remove('invulnerable');
+    }
 
     // Show tutorial hint again
     const hint = document.getElementById('switch-hint');
@@ -845,6 +1552,7 @@ function restartGame() {
     if (lightSwitch) lightSwitch.classList.add('hint-glow');
 
     updateGummyCounter();
+    updateHPDisplay();
     showScreen('game');
     setupRoom(0);
 }
@@ -858,8 +1566,16 @@ function scheduleChuckE() {
         clearTimeout(gameState.chuckETimeout);
     }
 
-    // Random chance to appear
-    const delay = 5000 + Math.random() * 10000; // 5-15 seconds
+    // Appear more frequently when HP is low
+    let delay;
+    if (gameState.player.hp <= 1) {
+        delay = 3000 + Math.random() * 4000; // 3-7 seconds when critical
+    } else if (gameState.player.hp <= 2) {
+        delay = 4000 + Math.random() * 6000; // 4-10 seconds when hurt
+    } else {
+        delay = 8000 + Math.random() * 12000; // 8-20 seconds when healthy
+    }
+
     gameState.chuckETimeout = setTimeout(() => {
         if (gameState.gameStarted && !gameState.lightsOn) {
             showChuckE();

@@ -29,6 +29,11 @@
                 <span class="gummy-icon">🍬</span>
                 <span id="gummy-count">0</span>
             </div>
+            <div id="hp-container">
+                <div class="heart full"></div>
+                <div class="heart full"></div>
+                <div class="heart full"></div>
+            </div>
             <div id="room-indicator">Room <span id="room-number">1</span>/3</div>
         </div>
 
@@ -97,6 +102,39 @@
 
                 <!-- Room decorations (set per room) -->
                 <div id="room-decor"></div>
+
+                <!-- Player (Graham) -->
+                <div id="player" class="facing-right">
+                    <svg viewBox="0 0 50 70" width="50" height="70">
+                        <!-- Body -->
+                        <ellipse cx="25" cy="48" rx="14" ry="18" fill="#4a90d9"/>
+                        <!-- Arms -->
+                        <ellipse cx="10" cy="45" rx="5" ry="8" fill="#ffcc99"/>
+                        <ellipse cx="40" cy="45" rx="5" ry="8" fill="#ffcc99"/>
+                        <!-- Head -->
+                        <circle cx="25" cy="20" r="16" fill="#ffcc99"/>
+                        <!-- Hair -->
+                        <ellipse cx="25" cy="10" rx="14" ry="8" fill="#8B4513"/>
+                        <ellipse cx="15" cy="14" rx="6" ry="4" fill="#8B4513"/>
+                        <ellipse cx="35" cy="14" rx="6" ry="4" fill="#8B4513"/>
+                        <!-- Eyes -->
+                        <ellipse cx="19" cy="20" rx="3" ry="4" fill="#fff"/>
+                        <ellipse cx="31" cy="20" rx="3" ry="4" fill="#fff"/>
+                        <circle cx="20" cy="21" r="2" fill="#333"/>
+                        <circle cx="32" cy="21" r="2" fill="#333"/>
+                        <!-- Smile -->
+                        <path d="M18 28 Q25 34 32 28" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                        <!-- Shoes -->
+                        <ellipse cx="18" cy="66" rx="6" ry="4" fill="#333"/>
+                        <ellipse cx="32" cy="66" rx="6" ry="4" fill="#333"/>
+                    </svg>
+                </div>
+
+                <!-- Move target indicator -->
+                <div id="move-target"></div>
+
+                <!-- Too far feedback -->
+                <div id="too-far-text">Too far!</div>
             </div>
         </div>
 
@@ -183,6 +221,22 @@
     <!-- Kung Fu Effect Overlay -->
     <div id="kung-fu-effect" class="hidden">
         <span class="hiya-text">HI-YA!</span>
+    </div>
+
+    <!-- BOO Effect Overlay -->
+    <div id="boo-effect" class="hidden">
+        <span class="boo-text">BOO!</span>
+    </div>
+
+    <!-- Respawn Screen -->
+    <div id="respawn-screen" class="screen">
+        <div class="respawn-content">
+            <h2>Oops!</h2>
+            <div class="respawn-ghost">👻</div>
+            <p>The ghosts got you!</p>
+            <p class="encouragement">You can do it, Graham!</p>
+            <button id="respawn-button" class="big-button">TRY AGAIN</button>
+        </div>
     </div>
 
     <script src="game.js"></script>
